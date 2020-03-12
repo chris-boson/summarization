@@ -7,6 +7,7 @@ setup(
     description="dummy",
     packages=find_packages(),
     install_requires=[
-        "pytorch-lightning"
+        "pytorch-lightning",
+        "transformers"
     ],
 )
