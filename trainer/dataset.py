@@ -9,7 +9,7 @@ from transformers import GPT2Tokenizer
 
 
 class TIFUDataset(Dataset):
-    def __init__(self, hparams: argparse.Namespace, train_test: str):
+    def __init__(self, hparams: argparse.Namespace):
         # TODO: Make train_test functional
         self.hparams = hparams
         input_path = os.path.join(
@@ -17,11 +17,19 @@ class TIFUDataset(Dataset):
         )
         self.data = []
         with open(input_path) as f:
-            for line in f:
+            for idx, line in enumerate(f):
                 document = json.loads(line)
                 if document['tldr'] is None: continue
                 self.data.append(document)
+                if self.hparams.max_documents and idx > self.hparams.max_documents: break
         self.tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+
+    @staticmethod
+    def add_args(parent_parser: argparse.ArgumentParser):
+        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
+        parser.add_argument('--max_tokens', default=1024, type=int, help="Maximum number of input tokens.")
+        parser.add_argument('--max_documents', default=None, type=int, help="Maximum number of documents.")
+        return parser
 
     def __len__(self):
         return len(self.data)
@@ -41,9 +49,3 @@ class TIFUDataset(Dataset):
         inputs_mask = (inputs_padded != 0).float()
         labels_mask = (labels_padded != 0).float()
         return [inputs_padded, labels_padded, inputs_mask, labels_mask]
-
-    @staticmethod
-    def add_args(parent_parser: argparse.ArgumentParser):
-        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
-        parser.add_argument('--max_tokens', default=1024, type=int, help="Maximum number of input tokens.")
-        return parser
