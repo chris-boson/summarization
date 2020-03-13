@@ -1,20 +1,23 @@
-import os
 import argparse
+import json
+import os
 
 import torch
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
-import pytorch_lightning as pl
 
+import pytorch_lightning as pl
 from trainer.dataset import TIFUDataset
-from transformers import GPT2LMHeadModel
+from transformers import GPT2LMHeadModel, get_linear_schedule_with_warmup
+
 
 class SummarizationModel(pl.LightningModule):
     def __init__(self, hparams):
         super().__init__()
         for k, v in hparams.__dict__.items():
             if v is None or isinstance(v, list): hparams.__dict__[k] = 'None'
-        print(hparams.__dict__)
+        del hparams.__dict__['kwargs']
+        print(json.dumps(hparams.__dict__, indent=4))
         self.hparams = hparams
         self.model = GPT2LMHeadModel.from_pretrained('gpt2')
 
@@ -62,18 +65,37 @@ class SummarizationModel(pl.LightningModule):
     #     return {'avg_test_loss': avg_loss, 'log': logs, 'progress_bar': logs}
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.hparams.lr)
+        no_decay = ["bias", "LayerNorm.weight"]
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in self.model.named_parameters() if not any(nd in n for nd in no_decay)],
+                "weight_decay": self.hparams.weight_decay,
+            },
+            {"params": [p for n, p in self.model.named_parameters() if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
+        ]
+        optimizer = torch.optim.AdamW(
+            optimizer_grouped_parameters,
+            lr=self.hparams.lr,
+            eps=self.hparams.adam_epsilon
+        )
+
+        if self.hparams.max_steps != 'None':# is not None:
+            t_total = self.hparams.max_steps
+        else:
+            t_total = len(self.train_dataloader()) * self.hparams.max_epochs
+            t_total /= self.hparams.accumulate_grad_batches
+        scheduler = get_linear_schedule_with_warmup(
+            optimizer, num_warmup_steps=self.hparams.warmup_steps, num_training_steps=t_total
+        )
+        return [optimizer], [scheduler]
 
     def train_dataloader(self):
-        input_path = os.path.join(
-            self.hparams.input_dir, 'tifu_all_tokenized_and_filtered.json'
-        )
         return DataLoader(
-            TIFUDataset(input_path),
+            TIFUDataset(self.hparams.input_dir),
             shuffle=True,
             batch_size=self.hparams.train_batch_size,
             num_workers=1,
-            collate_fn=TIFUDataset.my_collate
+            collate_fn=TIFUDataset.collate
         )
 
     # def val_dataloader(self):
@@ -93,6 +115,10 @@ class SummarizationModel(pl.LightningModule):
         :return:
         """
         parser = argparse.ArgumentParser(parents=[parent_parser])
-        parser.add_argument('--lr', default=0.02, type=float, help="Learning Rate")
         parser.add_argument('--train_batch_size', default=2, type=int, help="Train batch size.")
+        parser.add_argument('--lr', default=0.02, type=float, help="Learning Rate")
+        parser.add_argument('--adam_epsilon', default=1e-8, type=float, help="Epsilon for Adam optimizer.")
+        parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight decay if we apply some.")
+        parser.add_argument("--warmup_steps", default=0, type=int, help="Linear warmup over warmup_steps.")
+
         return parser

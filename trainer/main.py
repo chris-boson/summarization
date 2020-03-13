@@ -16,10 +16,9 @@ def main(args):
 
 def parse_args():
     parser = argparse.ArgumentParser(add_help=False)
-    # parser = pl.Trainer.add_argparse_args(parser)
+    parser = pl.Trainer.add_argparse_args(parser)
     parser.add_argument('--home_dir', default=os.getcwd(), type=str, help="Home directory")
     parser.add_argument('--name', type=str, required=True)
-    parser.add_argument('--gpus', default=0)
 
     parser = Model.add_model_specific_args(parser)
     args = parser.parse_args()
