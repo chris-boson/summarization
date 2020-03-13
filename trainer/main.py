@@ -10,7 +10,8 @@ def main(args):
     logger = pl.loggers.TensorBoardLogger(args.model_dir, name=args.name)
     trainer = pl.Trainer(
         gpus=args.gpus,
-        logger=logger
+        logger=logger,
+        max_epochs=args.max_epochs
     )
     trainer.fit(model)
 
@@ -25,6 +26,7 @@ def parse_args():
     args = parser.parse_args()
     args.input_dir = os.path.join(args.home_dir, 'datasets')
     args.model_dir = os.path.join(args.home_dir, 'models')
+    args.max_epochs = int(args.max_epochs)
     return args
 
 

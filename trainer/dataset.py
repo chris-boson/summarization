@@ -17,11 +17,12 @@ class TIFUDataset(Dataset):
         )
         self.data = []
         with open(input_path) as f:
-            for idx, line in enumerate(f):
+            for line in f:
                 document = json.loads(line)
                 if document['tldr'] is None: continue
                 self.data.append(document)
-                if self.hparams.max_documents and idx > self.hparams.max_documents: break
+        if self.hparams.max_documents:
+            self.data = self.data[:self.hparams.max_documents]
         self.tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
 
     @staticmethod

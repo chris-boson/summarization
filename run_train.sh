@@ -6,6 +6,6 @@ python -W ignore -m trainer.main \
     --name gpt2/$NOW \
     --gpus 1,2 \
     --train_batch_size 4 \
-    --test_percentage 0.5 \
+    --test_percentage 0.1 \
     --max_epochs 10 \
-    --max_documents 100 \
+    --max_documents 30 \
