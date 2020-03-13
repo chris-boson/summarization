@@ -15,12 +15,13 @@ def main(args):
     trainer.fit(model)
 
 def parse_args():
-    parser = argparse.ArgumentParser(add_help=False)
+    parser = argparse.ArgumentParser()
     parser = pl.Trainer.add_argparse_args(parser)
+    parser = Model.add_args(parser)
     parser.add_argument('--home_dir', default=os.getcwd(), type=str, help="Home directory")
     parser.add_argument('--name', type=str, required=True)
+    parser.add_argument('--test_percentage', default=0.1, type=float, help="Test percentage.")
 
-    parser = Model.add_model_specific_args(parser)
     args = parser.parse_args()
     args.input_dir = os.path.join(args.home_dir, 'datasets')
     args.model_dir = os.path.join(args.home_dir, 'models')

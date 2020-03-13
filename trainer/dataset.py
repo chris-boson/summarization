@@ -1,14 +1,20 @@
-import os
+import argparse
 import json
+import os
 
-from torch.utils.data import Dataset
-from transformers import GPT2Tokenizer
 import torch
+from torch.utils.data import Dataset
+
+from transformers import GPT2Tokenizer
 
 
 class TIFUDataset(Dataset):
-    def __init__(self, input_dir):
-        input_path = os.path.join(input_dir, 'tifu_all_tokenized_and_filtered.json')
+    def __init__(self, hparams: argparse.Namespace, train_test: str):
+        # TODO: Make train_test functional
+        self.hparams = hparams
+        input_path = os.path.join(
+            self.hparams.input_dir, 'tifu_all_tokenized_and_filtered.json'
+        )
         self.data = []
         with open(input_path) as f:
             for line in f:
@@ -21,7 +27,8 @@ class TIFUDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, index):
-        input = torch.tensor(self.tokenizer.encode(self.data[index]['selftext']))[:1024]
+        input = torch.tensor(self.tokenizer.encode(self.data[index]['selftext']))
+        input = input[:self.hparams.max_tokens]
         label = torch.tensor(self.tokenizer.encode(self.data[index]['tldr']))
         return input, label
 
@@ -34,3 +41,9 @@ class TIFUDataset(Dataset):
         inputs_mask = (inputs_padded != 0).float()
         labels_mask = (labels_padded != 0).float()
         return [inputs_padded, labels_padded, inputs_mask, labels_mask]
+
+    @staticmethod
+    def add_args(parent_parser: argparse.ArgumentParser):
+        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
+        parser.add_argument('--max_tokens', default=1024, type=int, help="Maximum number of input tokens.")
+        return parser

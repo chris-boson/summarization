@@ -12,14 +12,19 @@ from transformers import GPT2LMHeadModel, get_linear_schedule_with_warmup
 
 
 class SummarizationModel(pl.LightningModule):
-    def __init__(self, hparams):
+    def __init__(self, hparams: argparse.Namespace):
         super().__init__()
-        for k, v in hparams.__dict__.items():
-            if v is None or isinstance(v, list): hparams.__dict__[k] = 'None'
-        del hparams.__dict__['kwargs']
-        print(json.dumps(hparams.__dict__, indent=4))
         self.hparams = hparams
         self.model = GPT2LMHeadModel.from_pretrained('gpt2')
+        self.dataset_class = TIFUDataset
+        self.clean_hparams()
+
+    def clean_hparams(self):
+        # Related to the issue here: https://github.com/PyTorchLightning/pytorch-lightning/pull/1128
+        for k, v in self.hparams.__dict__.items():
+            if v is None or isinstance(v, list): self.hparams.__dict__[k] = 'None'
+        del self.hparams.__dict__['kwargs']
+        print(json.dumps(self.hparams.__dict__, indent=4))
 
     def forward(self, input_ids, attention_mask, labels):
         return self.model(
@@ -30,7 +35,6 @@ class SummarizationModel(pl.LightningModule):
 
     def training_step(self, batch, batch_nb):
         input_ids, label_ids, input_mask, label_mask = batch
-        # print(input_ids.shape, input_mask.shape, label_ids.shape, label_mask.shape)
         outputs = self.forward(
             input_ids=input_ids,
             attention_mask=input_mask,
@@ -79,7 +83,7 @@ class SummarizationModel(pl.LightningModule):
             eps=self.hparams.adam_epsilon
         )
 
-        if self.hparams.max_steps != 'None':# is not None:
+        if self.hparams.max_steps != 'None':
             t_total = self.hparams.max_steps
         else:
             t_total = len(self.train_dataloader()) * self.hparams.max_epochs
@@ -91,34 +95,38 @@ class SummarizationModel(pl.LightningModule):
 
     def train_dataloader(self):
         return DataLoader(
-            TIFUDataset(self.hparams.input_dir),
+            self.dataset_class(self.hparams, 'train'),
             shuffle=True,
             batch_size=self.hparams.train_batch_size,
             num_workers=1,
-            collate_fn=TIFUDataset.collate
+            collate_fn=self.dataset_class.collate
         )
 
-    # def val_dataloader(self):
-    #     # OPTIONAL
-    #     return DataLoader(MNIST(self.hparams.input_dir, train=True, download=True, transform=transforms.ToTensor()), batch_size=32)
+    def val_dataloader(self):
+         return DataLoader(
+            self.dataset_class(self.hparams, 'val'),
+            shuffle=False,
+            batch_size=self.hparams.train_batch_size,
+            num_workers=1,
+            collate_fn=self.dataset_class.collate
+        )
 
-    # def test_dataloader(self):
-    #     # OPTIONAL
-    #     return DataLoader(MNIST(self.hparams.input_dir, train=False, download=True, transform=transforms.ToTensor()), batch_size=32)
+    def test_dataloader(self):
+        return DataLoader(
+            self.dataset_class(self.hparams, 'test'),
+            shuffle=False,
+            batch_size=self.hparams.train_batch_size,
+            num_workers=1,
+            collate_fn=self.dataset_class.collate
+        )
 
     @staticmethod
-    def add_model_specific_args(parent_parser):  # pragma: no cover
-        """
-        Parameters you define here will be available to your model through self.args
-        :param parent_parser:
-        :param root_dir:
-        :return:
-        """
-        parser = argparse.ArgumentParser(parents=[parent_parser])
+    def add_args(parent_parser: argparse.ArgumentParser):
+        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
+        parser = TIFUDataset.add_args(parser)
         parser.add_argument('--train_batch_size', default=2, type=int, help="Train batch size.")
         parser.add_argument('--lr', default=0.02, type=float, help="Learning Rate")
         parser.add_argument('--adam_epsilon', default=1e-8, type=float, help="Epsilon for Adam optimizer.")
         parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight decay if we apply some.")
         parser.add_argument("--warmup_steps", default=0, type=int, help="Linear warmup over warmup_steps.")
-
         return parser
