@@ -10,11 +10,11 @@ from transformers import GPT2Tokenizer
 
 class TIFUDataset(Dataset):
     def __init__(self, hparams: argparse.Namespace):
-        # TODO: Make train_test functional
         self.hparams = hparams
         input_path = os.path.join(
             self.hparams.input_dir, 'tifu_all_tokenized_and_filtered.json'
         )
+        self.tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
         self.data = []
         with open(input_path) as f:
             for line in f:
@@ -23,7 +23,14 @@ class TIFUDataset(Dataset):
                 self.data.append(document)
         if self.hparams.max_documents:
             self.data = self.data[:self.hparams.max_documents]
-        self.tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+        self.inputs = [
+            torch.tensor(self.tokenizer.encode(doc['selftext']))[:self.hparams.max_tokens]
+            for doc in self.data
+        ]
+        self.labels = [
+            torch.tensor(self.tokenizer.encode(doc['tldr']))[:self.hparams.max_tokens]
+            for doc in self.data
+        ]
 
     @staticmethod
     def add_args(parent_parser: argparse.ArgumentParser):
@@ -36,10 +43,7 @@ class TIFUDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, index):
-        input = torch.tensor(self.tokenizer.encode(self.data[index]['selftext']))
-        input = input[:self.hparams.max_tokens]
-        label = torch.tensor(self.tokenizer.encode(self.data[index]['tldr']))
-        return input, label
+        return self.inputs[index], self.labels[index]
 
     @staticmethod
     def collate(batch):

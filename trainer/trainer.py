@@ -34,11 +34,13 @@ class SummarizationModel(pl.LightningModule):
         return parser
 
     def clean_hparams(self):
-        # Related to the issue here: https://github.com/PyTorchLightning/pytorch-lightning/pull/1128
         del self.hparams.__dict__['kwargs']
+        # Related to the issue here: https://github.com/PyTorchLightning/pytorch-lightning/pull/1128
+        self.hparams.__dict__ = {
+            k: v for k, v in self.hparams.__dict__.items()
+            if v is not None and not isinstance(v, list)
+        }
         print(json.dumps(self.hparams.__dict__, indent=4))
-        for k, v in self.hparams.__dict__.items():
-            if v is None or isinstance(v, list): self.hparams.__dict__[k] = 'None'
 
     def forward(self, input_ids, attention_mask, labels):
         return self.model(
@@ -138,7 +140,7 @@ class SummarizationModel(pl.LightningModule):
             eps=self.hparams.adam_epsilon
         )
 
-        if self.hparams.max_steps != 'None':
+        if 'max_steps' in self.hparams.__dict__:
             t_total = self.hparams.max_steps
         else:
             t_total = len(self.train_dataloader()) * self.hparams.max_epochs
