@@ -10,16 +10,15 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from trainer.dataset import TIFUDataset
 from transformers import GPT2LMHeadModel, get_linear_schedule_with_warmup
+from transformers import PreTrainedEncoderDecoder
+from transformers import GPT2Tokenizer, BertTokenizer
 
 
 class SummarizationModel(pl.LightningModule):
     def __init__(self, hparams: argparse.Namespace):
         super().__init__()
         self.hparams = hparams
-        self.model = GPT2LMHeadModel.from_pretrained('gpt2')
-        self.dataset_class = TIFUDataset
         self.clean_hparams()
-        self.get_datasets()
 
     @staticmethod
     def add_args(parent_parser: argparse.ArgumentParser):
@@ -31,6 +30,8 @@ class SummarizationModel(pl.LightningModule):
         parser.add_argument('--adam_epsilon', default=1e-8, type=float, help="Epsilon for Adam optimizer.")
         parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight decay if we apply some.")
         parser.add_argument("--warmup_steps", default=0, type=int, help="Linear warmup over warmup_steps.")
+        parser.add_argument("--encoder", default='gpt2', type=str, help="Encoder architecture.")
+        parser.add_argument("--decoder", default='gpt2', type=str, help="Decoder architecture.")
         return parser
 
     def clean_hparams(self):
@@ -42,61 +43,13 @@ class SummarizationModel(pl.LightningModule):
         }
         print(json.dumps(self.hparams.__dict__, indent=4))
 
-    def forward(self, input_ids, attention_mask, labels):
-        return self.model(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            labels=input_ids
-        )
-
-    def training_step(self, batch, batch_nb):
-        input_ids, label_ids, input_mask, label_mask = batch
-        outputs = self.forward(
-            input_ids=input_ids,
-            attention_mask=input_mask,
-            labels=label_ids
-        )
-        loss, logits = outputs[:2]
-        log = {'train/loss': loss}
-        return {'loss': loss, 'log': log}
-
-    def validation_step(self, batch, batch_nb):
-        input_ids, label_ids, input_mask, label_mask = batch
-        outputs = self.forward(
-            input_ids=input_ids,
-            attention_mask=input_mask,
-            labels=label_ids
-        )
-        loss, logits = outputs[:2]
-        return {'val_loss': loss}
-
-    def validation_epoch_end(self, outputs):
-        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        log = {'val/loss': avg_loss}
-        return {'avg_val_loss': avg_loss, 'log': log}
-
-    def test_step(self, batch, batch_nb):
-        input_ids, label_ids, input_mask, label_mask = batch
-        outputs = self.forward(
-            input_ids=input_ids,
-            attention_mask=input_mask,
-            labels=label_ids
-        )
-        loss, logits = outputs[:2]
-        return {'test_loss': loss}
-
-    def test_epoch_end(self, outputs):
-        avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
-        log = {'test/loss': avg_loss}
-        return {'avg_test_loss': avg_loss, 'log': log, 'progress_bar': log}
-
     def get_datasets(self):
         assert self.hparams.test_percentage < 0.33
-        dataset = self.dataset_class(self.hparams)
-        test_len = int(self.hparams.test_percentage*len(dataset))
-        lengths = [len(dataset) - 2*test_len, test_len, test_len]
+        self.dataset = TIFUDataset(self.hparams, self.encoder_tokenzier)
+        test_len = int(self.hparams.test_percentage*len(self.dataset))
+        lengths = [len(self.dataset) - 2*test_len, test_len, test_len]
         print("Documents train: %s, val: %s, test: %s" % tuple(lengths))
-        self.datasets = torch.utils.data.random_split(dataset, lengths)
+        self.datasets = torch.utils.data.random_split(self.dataset, lengths)
 
     def train_dataloader(self):
         return DataLoader(
@@ -104,7 +57,7 @@ class SummarizationModel(pl.LightningModule):
             shuffle=True,
             batch_size=self.hparams.train_batch_size,
             num_workers=1,
-            collate_fn=self.dataset_class.collate
+            collate_fn=self.dataset.collate
         )
 
     def val_dataloader(self):
@@ -113,7 +66,7 @@ class SummarizationModel(pl.LightningModule):
             shuffle=False,
             batch_size=self.hparams.eval_batch_size,
             num_workers=1,
-            collate_fn=self.dataset_class.collate
+            collate_fn=self.dataset.collate
         )
 
     def test_dataloader(self):
@@ -122,7 +75,7 @@ class SummarizationModel(pl.LightningModule):
             shuffle=False,
             batch_size=self.hparams.eval_batch_size,
             num_workers=1,
-            collate_fn=self.dataset_class.collate
+            collate_fn=self.dataset.collate
         )
 
     def configure_optimizers(self):
