@@ -9,9 +9,7 @@ from torch.utils.data import DataLoader
 
 import pytorch_lightning as pl
 from trainer.dataset import TIFUDataset
-from transformers import GPT2LMHeadModel, get_linear_schedule_with_warmup
-from transformers import PreTrainedEncoderDecoder
-from transformers import GPT2Tokenizer, BertTokenizer
+from transformers import get_linear_schedule_with_warmup
 
 
 class SummarizationModel(pl.LightningModule):
@@ -30,7 +28,7 @@ class SummarizationModel(pl.LightningModule):
         parser.add_argument('--adam_epsilon', default=1e-8, type=float, help="Epsilon for Adam optimizer.")
         parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight decay if we apply some.")
         parser.add_argument("--warmup_steps", default=0, type=int, help="Linear warmup over warmup_steps.")
-        parser.add_argument("--encoder", default='gpt2', type=str, help="Encoder architecture.")
+        parser.add_argument("--encoder", default='bert-base-uncased', type=str, help="Encoder architecture.")
         parser.add_argument("--decoder", default='gpt2', type=str, help="Decoder architecture.")
         return parser
 
@@ -45,7 +43,7 @@ class SummarizationModel(pl.LightningModule):
 
     def get_datasets(self):
         assert self.hparams.test_percentage < 0.33
-        self.dataset = TIFUDataset(self.hparams, self.encoder_tokenzier)
+        self.dataset = TIFUDataset(self.hparams, self.encoder_tokenizer)
         test_len = int(self.hparams.test_percentage*len(self.dataset))
         lengths = [len(self.dataset) - 2*test_len, test_len, test_len]
         print("Documents train: %s, val: %s, test: %s" % tuple(lengths))
