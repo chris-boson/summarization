@@ -17,6 +17,8 @@ def main(args):
     model = MODEL_DICT[args.model_type](args)
     logger = pl.loggers.TensorBoardLogger(args.model_dir, name=args.name)
     trainer = pl.Trainer(
+        amp_level='O1',
+        precision=args.precision,
         gpus=args.gpus,
         logger=logger,
         max_epochs=args.max_epochs
@@ -36,6 +38,7 @@ def parse_args():
     args.input_dir = os.path.join(args.home_dir, 'datasets')
     args.model_dir = os.path.join(args.home_dir, 'models')
     args.max_epochs = int(args.max_epochs)
+    args.precision = int(args.precision)
     return args
 
 

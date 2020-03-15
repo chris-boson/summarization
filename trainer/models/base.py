@@ -28,7 +28,7 @@ class SummarizationModel(pl.LightningModule):
         parser.add_argument('--adam_epsilon', default=1e-8, type=float, help="Epsilon for Adam optimizer.")
         parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight decay if we apply some.")
         parser.add_argument("--warmup_steps", default=0, type=int, help="Linear warmup over warmup_steps.")
-        parser.add_argument("--encoder", default='bert-base-uncased', type=str, help="Encoder architecture.")
+        parser.add_argument("--encoder", default='gpt2', type=str, help="Encoder architecture.")
         parser.add_argument("--decoder", default='gpt2', type=str, help="Decoder architecture.")
         return parser
 

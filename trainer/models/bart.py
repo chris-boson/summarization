@@ -31,8 +31,8 @@ class BartSummarizer(SummarizationModel):
         return self.model(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            decoder_input_ids=label_ids#,
-            # decoder_attention_mask=label_mask
+            decoder_input_ids=label_ids,
+            decoder_attention_mask=None
         )
 
     def _step(self, batch):
