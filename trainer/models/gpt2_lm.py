@@ -14,14 +14,15 @@ from trainer.models.base import SummarizationModel
 
 
 class GPT2LMSummarizer(SummarizationModel):
-    def __init__(self, hparams: argparse.Namespace):
-        super().__init__(hparams)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.model = GPT2LMHeadModel.from_pretrained('gpt2')
         self.get_tokenizers()
         self.get_datasets()
 
     def get_tokenizers(self):
         self.encoder_tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+        self.encoder_tokenizer.pad_token = self.encoder_tokenizer.eos_token
 
     def forward(self, input_ids, attention_mask):
         return self.model(

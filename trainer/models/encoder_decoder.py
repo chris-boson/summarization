@@ -14,8 +14,8 @@ from trainer.models.base import SummarizationModel
 
 
 class EncoderDecoderSummarizer(SummarizationModel):
-    def __init__(self, hparams: argparse.Namespace):
-        super().__init__(hparams)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.model = PreTrainedEncoderDecoder.from_pretrained(
             self.hparams.encoder, self.hparams.decoder
         )
@@ -28,6 +28,7 @@ class EncoderDecoderSummarizer(SummarizationModel):
             'bert-base-uncased': BertTokenizer
         }
         self.encoder_tokenizer = tokenizer_dict[self.hparams.encoder].from_pretrained(self.hparams.encoder)
+        self.encoder_tokenizer.pad_token = self.encoder_tokenizer.eos_token
         self.decoder_tokenizer = tokenizer_dict[self.hparams.decoder].from_pretrained(self.hparams.decoder)
 
     def forward(self, input_ids, attention_mask, label_ids, label_mask):

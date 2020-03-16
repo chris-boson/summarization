@@ -35,13 +35,6 @@ class TIFUDataset(Dataset):
             for doc in data
         ]
 
-    @staticmethod
-    def add_args(parent_parser: argparse.ArgumentParser):
-        parser = argparse.ArgumentParser(parents=[parent_parser], add_help=False)
-        parser.add_argument('--max_tokens', default=1024, type=int, help="Maximum number of input tokens.")
-        parser.add_argument('--max_documents', default=None, type=int, help="Maximum number of documents.")
-        return parser
-
     def __len__(self):
         return len(self.inputs)
 
