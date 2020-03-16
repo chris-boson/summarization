@@ -18,9 +18,14 @@ class CnnDailyMailDataset(Dataset):
         self.target = []
 
         print("loading " + type_path + " source.")
+        if type_path in ['val', 'test'] and self.hparams.max_documents:
+            max_documents = self.hparams.max_documents * self.hparams.test_percentage
+        elif type_path == 'train' and self.hparams.max_documents:
+            max_documents = self.hparams.max_documents * (1 - 2 * self.hparams.test_percentage)
 
         with open(os.path.join(data_dir, type_path + ".source"), "r") as f:
-            for text in f.readlines():  # each text is a line and a full story
+            for i, text in enumerate(f.readlines()):  # each text is a line and a full story
+                if i >= max_documents: break
                 tokenized = tokenizer.batch_encode_plus(
                     [text], max_length=block_size, pad_to_max_length=True, return_tensors="pt"
                 )
@@ -29,7 +34,8 @@ class CnnDailyMailDataset(Dataset):
         print("loading " + type_path + " target.")
 
         with open(os.path.join(data_dir, type_path + ".target"), "r") as f:
-            for text in f.readlines():  # each text is a line and a summary
+            for i, text in enumerate(f.readlines()):  # each text is a line and a summary
+                if i >= max_documents: break
                 tokenized = tokenizer.batch_encode_plus(
                     [text], max_length=56, pad_to_max_length=True, return_tensors="pt"
                 )
@@ -43,5 +49,5 @@ class CnnDailyMailDataset(Dataset):
         target_ids = self.target[index]["input_ids"].squeeze()
 
         src_mask = self.source[index]["attention_mask"].squeeze()  # might need to squeeze
-
-        return source_ids, target_ids, src_mask, None
+        target_mask = (target_ids != 0).int()
+        return source_ids, target_ids, src_mask, target_mask

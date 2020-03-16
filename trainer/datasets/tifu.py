@@ -40,16 +40,3 @@ class TIFUDataset(Dataset):
 
     def __getitem__(self, index):
         return self.inputs[index], self.labels[index]
-
-    def collate(self, batch):
-        inputs = [elem[0] for elem in batch]
-        labels = [elem[1] for elem in batch]
-        if self.hparams.model_type in ['bart']:
-            pad_token_id = self.tokenizer.pad_token_id
-        else:
-            pad_token_id = 0
-        inputs_padded = torch.nn.utils.rnn.pad_sequence(inputs, batch_first=True, padding_value=pad_token_id)
-        labels_padded = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True, padding_value=pad_token_id)
-        inputs_mask = (inputs_padded != 0).int()
-        labels_mask = (labels_padded != 0).int()
-        return [inputs_padded, labels_padded, inputs_mask, labels_mask]

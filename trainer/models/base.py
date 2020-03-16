@@ -54,13 +54,14 @@ class SummarizationModel(pl.LightningModule):
             self.dataset = self.dataset_class(self.hparams, self.encoder_tokenizer)
             test_len = int(self.hparams.test_percentage*len(self.dataset))
             lengths = [len(self.dataset) - 2*test_len, test_len, test_len]
-            print("Documents train: %s, val: %s, test: %s" % tuple(lengths))
             self.datasets = torch.utils.data.random_split(self.dataset, lengths)
         elif self.hparams.dataset == 'cnn_dm':
             self.datasets = [
                 self.dataset_class(self.hparams, self.encoder_tokenizer, type_path=i)
                 for i in ['train', 'val', 'test']
             ]
+        print("Documents train: %s, val: %s, test: %s" %
+            tuple(len(dataset) for dataset in self.datasets))
 
     def train_dataloader(self):
         return DataLoader(
@@ -68,7 +69,7 @@ class SummarizationModel(pl.LightningModule):
             shuffle=True,
             batch_size=self.hparams.train_batch_size,
             num_workers=1,
-            collate_fn=self.dataset.collate
+            collate_fn=self.collate
         )
 
     def val_dataloader(self):
@@ -77,7 +78,7 @@ class SummarizationModel(pl.LightningModule):
             shuffle=False,
             batch_size=self.hparams.eval_batch_size,
             num_workers=1,
-            collate_fn=self.dataset.collate
+            collate_fn=self.collate
         )
 
     def test_dataloader(self):
@@ -86,7 +87,7 @@ class SummarizationModel(pl.LightningModule):
             shuffle=False,
             batch_size=self.hparams.eval_batch_size,
             num_workers=1,
-            collate_fn=self.dataset.collate
+            collate_fn=self.collate#self.datasets[0].collate if hasattr(self.datasets[0], 'collate') else self.dataset.collate
         )
 
     def configure_optimizers(self):
@@ -113,6 +114,16 @@ class SummarizationModel(pl.LightningModule):
             optimizer, num_warmup_steps=self.hparams.warmup_steps, num_training_steps=t_total
         )
         return [optimizer], [self.scheduler]
+
+    def collate(self, batch):
+        inputs = [elem[0] for elem in batch]
+        labels = [elem[1] for elem in batch]
+        pad_token_id = self.encoder_tokenizer.pad_token_id
+        inputs_padded = torch.nn.utils.rnn.pad_sequence(inputs, batch_first=True, padding_value=pad_token_id)
+        labels_padded = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True, padding_value=pad_token_id)
+        inputs_mask = (inputs_padded != 0).int()
+        labels_mask = (labels_padded != 0).int()
+        return [inputs_padded, labels_padded, inputs_mask, labels_mask]
 
     # Work around for ddp distribution strategy: https://github.com/PyTorchLightning/pytorch-lightning/issues/538
     def configure_ddp(self, model, device_ids):
