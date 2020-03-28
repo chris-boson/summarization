@@ -37,23 +37,12 @@ class ConditionalGenerationSummarizer(SummarizationModel):
         self.get_model()
 
     def forward(self, input_ids, attention_mask, label_ids, label_mask):
-        try:
-            return self.model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                decoder_input_ids=label_ids,
-                decoder_attention_mask=None#label_mask
-            )
-        except:
-            print("Inputids", input_ids)
-            print("attention mask", attention_mask)
-            print("label ids", label_ids)
-            return self.model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                decoder_input_ids=label_ids,
-                decoder_attention_mask=None#label_mask
-            )
+        return self.model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            decoder_input_ids=label_ids,
+            decoder_attention_mask=None#label_mask
+        )
 
     def _step(self, batch):
         input_ids, label_ids, input_mask, label_mask = batch
@@ -84,7 +73,7 @@ class ConditionalGenerationSummarizer(SummarizationModel):
         return {"val_loss": loss}
 
     def validation_end(self, outputs):
-        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        avg_loss = torch.cat([x['val_loss'] for x in outputs]).mean()
         log = {'val/loss': avg_loss}
         return {'avg_val_loss': avg_loss, 'log': log}
 
@@ -93,9 +82,9 @@ class ConditionalGenerationSummarizer(SummarizationModel):
         generated_ids = self.model.generate(
             input_ids,
             attention_mask=input_mask,
-            # num_beams=3,
-            max_length=40,
-            repetition_penalty=3.0,
+            num_beams=self.hparams.num_beams,
+            max_length=self.hparams.max_length,
+            repetition_penalty=self.hparams.repetition_penalty,
         )
         loss = self._step(batch)
 

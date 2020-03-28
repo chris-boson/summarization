@@ -14,14 +14,17 @@ python -m trainer.main \
     --name $DATASET/$MODEL_TYPE/$NOW \
     --accumulate_grad_batches 1 \
     --max_epochs 2 \
-    --train_batch_size 16 \
-    --eval_batch_size 1 \
+    --train_batch_size 32 \
+    --eval_batch_size 16 \
     --test_percentage 0.05 \
-    --max_documents 100 \
+    --max_documents 1000 \
     --model_type $MODEL_TYPE \
     --max_tokens 512 \
     --encoder t5-small \
     --decoder t5-small \
+    --num_beams 3 \
+    --max_length 40 \
+    --repetition_penalty 3.0 \
 
 # python -m torch.distributed.launch \
 #     --nproc_per_node 4 \

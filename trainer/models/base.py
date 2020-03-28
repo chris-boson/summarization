@@ -31,6 +31,9 @@ class SummarizationModel(pl.LightningModule):
         parser.add_argument("--warmup_steps", default=0, type=int, help="Linear warmup over warmup_steps.")
         parser.add_argument("--encoder", default=None, type=str, help="Encoder architecture.")
         parser.add_argument("--decoder", default=None, type=str, help="Decoder architecture.")
+        parser.add_argument("--num_beams", default=1, type=int, help="Width of beam search.")
+        parser.add_argument("--max_length", default=40, type=int, help="Max number of tokens of generated summaries.")
+        parser.add_argument("--repetition_penalty", default=3.0, type=float, help="Penalize repetition. More than 1.0 -> less repetition.")
         parser = SummarizationModel.add_dataset_args(parser)
         return parser
 
