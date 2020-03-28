@@ -21,17 +21,22 @@ class TIFUDataset(Dataset):
         with open(input_path) as f:
             for line in f:
                 document = json.loads(line)
-                if document['tldr'] is None: continue
+                if document['tldr'] is None or len(self.tokenizer.encode(document['tldr'])) <= 3:
+                    continue
                 data.append(document)
                 if self.hparams.max_documents and len(data) >= self.hparams.max_documents:
                     break
 
         self.inputs = [
-            torch.tensor(self.tokenizer.encode(doc['selftext']))[:self.hparams.max_tokens]
+            torch.tensor(
+                self.tokenizer.encode(doc['selftext_without_tldr']),
+                dtype=torch.long)[:self.hparams.max_tokens]
             for doc in data
         ]
         self.labels = [
-            torch.tensor(self.tokenizer.encode(doc['tldr']))[:self.hparams.max_tokens]
+            torch.tensor(
+                self.tokenizer.encode(doc['tldr']),
+                dtype=torch.long)[:self.hparams.max_tokens]
             for doc in data
         ]
 

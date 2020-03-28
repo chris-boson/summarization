@@ -17,6 +17,8 @@ class SummarizationModel(pl.LightningModule):
         self.hparams = hparams
         self.dataset_class = dataset_class
         self.clean_hparams()
+        self.encoder_tokenizer = None
+        self.decoder_tokenizer = None
 
     @staticmethod
     def add_args(parent_parser: argparse.ArgumentParser):
@@ -27,8 +29,8 @@ class SummarizationModel(pl.LightningModule):
         parser.add_argument('--adam_epsilon', default=1e-8, type=float, help="Epsilon for Adam optimizer.")
         parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight decay if we apply some.")
         parser.add_argument("--warmup_steps", default=0, type=int, help="Linear warmup over warmup_steps.")
-        parser.add_argument("--encoder", default='gpt2', type=str, help="Encoder architecture.")
-        parser.add_argument("--decoder", default='gpt2', type=str, help="Decoder architecture.")
+        parser.add_argument("--encoder", default=None, type=str, help="Encoder architecture.")
+        parser.add_argument("--decoder", default=None, type=str, help="Decoder architecture.")
         parser = SummarizationModel.add_dataset_args(parser)
         return parser
 
@@ -87,8 +89,19 @@ class SummarizationModel(pl.LightningModule):
             shuffle=False,
             batch_size=self.hparams.eval_batch_size,
             num_workers=1,
-            collate_fn=self.collate#self.datasets[0].collate if hasattr(self.datasets[0], 'collate') else self.dataset.collate
+            collate_fn=self.collate
         )
+
+    def collate(self, batch):
+        inputs = [elem[0] for elem in batch]
+        labels = [elem[1] for elem in batch]
+        # pad_token_id = self.encoder_tokenizer.pad_token_id
+        pad_token_id = 0
+        inputs_padded = torch.nn.utils.rnn.pad_sequence(inputs, batch_first=True, padding_value=pad_token_id)
+        labels_padded = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True, padding_value=pad_token_id)
+        inputs_mask = (inputs_padded != 0).int()
+        labels_mask = (labels_padded != 0).int()
+        return [inputs_padded, labels_padded, inputs_mask, labels_mask]
 
     def configure_optimizers(self):
         no_decay = ["bias", "LayerNorm.weight"]
@@ -114,16 +127,6 @@ class SummarizationModel(pl.LightningModule):
             optimizer, num_warmup_steps=self.hparams.warmup_steps, num_training_steps=t_total
         )
         return [optimizer], [self.scheduler]
-
-    def collate(self, batch):
-        inputs = [elem[0] for elem in batch]
-        labels = [elem[1] for elem in batch]
-        pad_token_id = self.encoder_tokenizer.pad_token_id
-        inputs_padded = torch.nn.utils.rnn.pad_sequence(inputs, batch_first=True, padding_value=pad_token_id)
-        labels_padded = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True, padding_value=pad_token_id)
-        inputs_mask = (inputs_padded != 0).int()
-        labels_mask = (labels_padded != 0).int()
-        return [inputs_padded, labels_padded, inputs_mask, labels_mask]
 
     # Work around for ddp distribution strategy: https://github.com/PyTorchLightning/pytorch-lightning/issues/538
     def configure_ddp(self, model, device_ids):
