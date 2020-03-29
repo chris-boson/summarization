@@ -6,9 +6,10 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
-
+from common.metrics import Metrics
 import pytorch_lightning as pl
 from transformers import get_linear_schedule_with_warmup
+from typing import List
 
 
 class SummarizationModel(pl.LightningModule):
@@ -19,6 +20,7 @@ class SummarizationModel(pl.LightningModule):
         self.clean_hparams()
         self.encoder_tokenizer = None
         self.decoder_tokenizer = None
+        self.metrics = Metrics()
 
     @staticmethod
     def add_args(parent_parser: argparse.ArgumentParser):
