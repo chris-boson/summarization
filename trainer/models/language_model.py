@@ -13,16 +13,24 @@ from transformers import GPT2Tokenizer
 from trainer.models.base import SummarizationModel
 
 
-class GPT2LMSummarizer(SummarizationModel):
+class LMSummarizer(SummarizationModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = GPT2LMHeadModel.from_pretrained('gpt2')
-        self.get_tokenizers()
+        self.get_model()
         self.get_datasets()
 
-    def get_tokenizers(self):
-        self.encoder_tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
-        self.encoder_tokenizer.pad_token = self.encoder_tokenizer.eos_token
+    def get_model(self):
+        model_dict = {
+            'gpt2' : (GPT2Tokenizer, GPT2LMHeadModel)
+        }
+        assert any(model_type in self.hparams.encoder for model_type in model_dict.keys())
+        for k, v in model_dict.items():
+            if k in self.hparams.encoder:
+                self.encoder_tokenizer = v[0].from_pretrained(self.hparams.encoder)
+                self.encoder_tokenizer.pad_token = self.encoder_tokenizer.eos_token
+                self.decoder_tokenizer = v[0].from_pretrained(self.hparams.decoder)
+                self.model = v[1].from_pretrained(self.hparams.encoder, output_past=True)
 
     def forward(self, input_ids, attention_mask):
         return self.model(
@@ -51,7 +59,7 @@ class GPT2LMSummarizer(SummarizationModel):
         return {'val_loss': loss}
 
     def validation_end(self, outputs):
-        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        avg_loss = torch.cat([x['val_loss'] for x in outputs]).mean()
         log = {'val/loss': avg_loss}
         return {'avg_val_loss': avg_loss, 'log': log}
 

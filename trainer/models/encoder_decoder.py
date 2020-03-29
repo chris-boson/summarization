@@ -1,41 +1,44 @@
-import argparse
-import json
-import os
 
-import numpy as np
 import torch
-from torch.nn import functional as F
-from torch.utils.data import DataLoader
 
-import pytorch_lightning as pl
 from transformers import PreTrainedEncoderDecoder
-from transformers import GPT2Tokenizer, BertTokenizer
+from transformers import GPT2Tokenizer, BertTokenizer, TransfoXLTokenizer
 from trainer.models.base import SummarizationModel
 
 
 class EncoderDecoderSummarizer(SummarizationModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.get_model()
+        self.get_datasets()
+
+    def get_model(self):
+        tokenizer_dict = {
+            'gpt2': GPT2Tokenizer,
+            'bert': BertTokenizer,
+            'transfo-xl': TransfoXLTokenizer
+        }
         self.model = PreTrainedEncoderDecoder.from_pretrained(
             self.hparams.encoder, self.hparams.decoder
         )
-        self.get_tokenizers()
-        self.get_datasets()
+        for k, v in tokenizer_dict.items():
+            if k in self.hparams.encoder:
+                self.encoder_tokenizer = v.from_pretrained(self.hparams.encoder)
+                self.encoder_tokenizer.pad_token = self.encoder_tokenizer.eos_token
+            if k in self.hparams.decoder:
+                self.decoder_tokenizer = v.from_pretrained(self.hparams.decoder)
 
-    def get_tokenizers(self):
-        tokenizer_dict = {
-            'gpt2': GPT2Tokenizer,
-            'bert-base-uncased': BertTokenizer
-        }
-        self.encoder_tokenizer = tokenizer_dict[self.hparams.encoder].from_pretrained(self.hparams.encoder)
-        self.encoder_tokenizer.pad_token = self.encoder_tokenizer.eos_token
-        self.decoder_tokenizer = tokenizer_dict[self.hparams.decoder].from_pretrained(self.hparams.decoder)
+        if self.encoder_tokenizer is None or self.decoder_tokenizer is None:
+            raise ValueError("Invalid encoder / decoder params, allowed values %s" %
+                             tokenizer_dict.keys())
 
     def forward(self, input_ids, attention_mask, label_ids, label_mask):
         return self.model(
             encoder_input_ids=input_ids,
             # encoder_attention_mask=attention_mask,
-            decoder_input_ids=label_ids#,
+            # decoder_input_ids=input_ids#,
+            # decoder_attention_mask=attention_mask
+            decoder_input_ids=label_ids,
             # decoder_attention_mask=label_mask
         )
 

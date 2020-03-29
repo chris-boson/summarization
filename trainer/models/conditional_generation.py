@@ -15,7 +15,7 @@ class ConditionalGenerationSummarizer(SummarizationModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.criterion = torch.nn.CrossEntropyLoss()
-        self.get_tokenizers()
+        self.get_model()
         self.get_datasets()
 
     def get_model(self):
@@ -31,10 +31,8 @@ class ConditionalGenerationSummarizer(SummarizationModel):
                 self.model = v[1].from_pretrained(self.hparams.encoder, output_past=True)
 
         if self.encoder_tokenizer is None or self.decoder_tokenizer is None:
-            raise ValueError("Invalid encoder / decoder params, allowed values %s" % model_dict.keys())
-
-    def get_tokenizers(self):
-        self.get_model()
+            raise ValueError("Invalid encoder / decoder params, allowed values %s" %
+                             model_dict.keys())
 
     def forward(self, input_ids, attention_mask, label_ids, label_mask):
         return self.model(
