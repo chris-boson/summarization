@@ -105,21 +105,11 @@ class ConditionalGenerationSummarizer(SummarizationModel):
         outputs_file = os.path.join(self.hparams.model_dir, self.hparams.name, "outputs.json")
         output = []
         for batch in outputs:
-            output.extend(
-                [{
-                    'prediction': self.decode(batch['preds'][i]),
-                    'target': self.decode(batch['target'][i])
-                }]
-                for i in range(len(batch['preds']))
-            )
-        #print(json.dumps(output, indent=4))
+            output.extend(self.decode_batch(batch))
+
+        print(json.dumps(output, indent=4))
         with open(outputs_file, 'w') as f:
             json.dump(output, f, indent=4)
 
-        all_predictions = [obj[0]["prediction"] for obj in output]
-        all_targets = [obj[0]["target"] for obj in output]
-
-        metric_scores = self.metrics.score(all_predictions, all_targets)
-        print(json.dumps(metric_scores, indent=4))
-
+        self.calculate_metrics(output)
         return self.test_end(outputs)

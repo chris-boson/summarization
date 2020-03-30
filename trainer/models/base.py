@@ -134,6 +134,25 @@ class SummarizationModel(pl.LightningModule):
         )
         return [optimizer], [self.scheduler]
 
+    def decode(self, ids):
+        return self.decoder_tokenizer.decode(ids, skip_special_tokens=True, clean_up_tokenization_spaces=True)
+
+    def decode_batch(self, batch):
+        return [
+            {
+                'prediction': self.decode(batch['preds'][i]),
+                'target': self.decode(batch['target'][i])
+            } for i in range(len(batch['preds']))
+        ]
+
+    def calculate_metrics(self, output):
+        all_predictions = [obj["prediction"] for obj in output]
+        all_targets = [obj["target"] for obj in output]
+
+        metric_scores = self.metrics.score(all_predictions, all_targets)
+        print(json.dumps(metric_scores, indent=4))
+        return metric_scores
+
     # Work around for ddp distribution strategy: https://github.com/PyTorchLightning/pytorch-lightning/issues/538
     def configure_ddp(self, model, device_ids):
         """

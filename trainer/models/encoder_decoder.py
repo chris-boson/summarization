@@ -104,9 +104,6 @@ class EncoderDecoderSummarizer(SummarizationModel):
 
         return {"val_loss": loss, "preds": generated_ids, "target": label_ids}
 
-    def decode(self, ids):
-        return self.decoder_tokenizer.decode(ids, skip_special_tokens=True, clean_up_tokenization_spaces=True)
-
     def test_end(self, outputs):
         return self.validation_end(outputs)
 
@@ -114,21 +111,11 @@ class EncoderDecoderSummarizer(SummarizationModel):
         outputs_file = os.path.join(self.hparams.model_dir, self.hparams.name, "outputs.json")
         output = []
         for batch in outputs:
-            output.extend(
-                [{
-                    'prediction': self.decode(batch['preds'][i]),
-                    'target': self.decode(batch['target'][i])
-                }]
-                for i in range(len(batch['preds']))
-            )
+            output.extend(self.decode_batch(batch))
+
         print(json.dumps(output, indent=4))
         with open(outputs_file, 'w') as f:
             json.dump(output, f, indent=4)
 
-        all_predictions = [obj[0]["prediction"] for obj in output]
-        all_targets = [obj[0]["target"] for obj in output]
-
-        metric_scores = self.metrics.score(all_predictions, all_targets)
-        print(json.dumps(metric_scores, indent=4))
-
+        self.calculate_metrics(output)
         return self.test_end(outputs)
