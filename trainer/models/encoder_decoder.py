@@ -125,4 +125,10 @@ class EncoderDecoderSummarizer(SummarizationModel):
         with open(outputs_file, 'w') as f:
             json.dump(output, f, indent=4)
 
+        all_predictions = [obj[0]["prediction"] for obj in output]
+        all_targets = [obj[0]["target"] for obj in output]
+
+        metric_scores = self.metrics.score(all_predictions, all_targets)
+        print(json.dumps(metric_scores, indent=4))
+
         return self.test_end(outputs)

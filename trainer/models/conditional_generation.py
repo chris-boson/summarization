@@ -4,8 +4,7 @@ import os
 import torch
 from torch.nn import functional as F
 
-from transformers.modeling_bart import BartForConditionalGeneration
-from transformers import BartTokenizer
+from transformers import BartTokenizer, BartForConditionalGeneration
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 from trainer.models.base import SummarizationModel
 
@@ -121,6 +120,6 @@ class ConditionalGenerationSummarizer(SummarizationModel):
         all_targets = [obj[0]["target"] for obj in output]
 
         metric_scores = self.metrics.score(all_predictions, all_targets)
-        print(metric_scores)
+        print(json.dumps(metric_scores, indent=4))
 
         return self.test_end(outputs)
