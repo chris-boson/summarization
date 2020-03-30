@@ -1,0 +1,3 @@
+pytorch-lightning
+# transformers
+-e git+https://github.com/greenkeytech/transformers.git@mgoldey/seq2seq#egg=transformers

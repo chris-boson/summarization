@@ -31,7 +31,7 @@ class SummarizationModel(pl.LightningModule):
         parser.add_argument("--warmup_steps", default=0, type=int, help="Linear warmup over warmup_steps.")
         parser.add_argument("--encoder", default=None, type=str, help="Encoder architecture.")
         parser.add_argument("--decoder", default=None, type=str, help="Decoder architecture.")
-        parser.add_argument("--num_beams", default=1, type=int, help="Width of beam search.")
+        parser.add_argument("--num_beams", default=None, type=int, help="Width of beam search.")
         parser.add_argument("--max_length", default=40, type=int, help="Max number of tokens of generated summaries.")
         parser.add_argument("--repetition_penalty", default=3.0, type=float, help="Penalize repetition. More than 1.0 -> less repetition.")
         parser = SummarizationModel.add_dataset_args(parser)
@@ -45,7 +45,8 @@ class SummarizationModel(pl.LightningModule):
         return parser
 
     def clean_hparams(self):
-        del self.hparams.__dict__['kwargs']
+        if 'kwargs' in self.hparams.__dict__:
+            del self.hparams.__dict__['kwargs']
         # Related to the issue here: https://github.com/PyTorchLightning/pytorch-lightning/pull/1128
         self.hparams.__dict__ = {
             k: v for k, v in self.hparams.__dict__.items()
@@ -98,8 +99,8 @@ class SummarizationModel(pl.LightningModule):
     def collate(self, batch):
         inputs = [elem[0] for elem in batch]
         labels = [elem[1] for elem in batch]
-        # pad_token_id = self.encoder_tokenizer.pad_token_id
-        pad_token_id = 0
+        pad_token_id = self.encoder_tokenizer.pad_token_id
+        # pad_token_id = 0
         inputs_padded = torch.nn.utils.rnn.pad_sequence(inputs, batch_first=True, padding_value=pad_token_id)
         labels_padded = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True, padding_value=pad_token_id)
         inputs_mask = (inputs_padded != 0).int()
