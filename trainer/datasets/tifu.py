@@ -29,13 +29,19 @@ class TIFUDataset(Dataset):
 
         self.inputs = [
             torch.tensor(
-                self.tokenizer.encode(doc['selftext_without_tldr']),
+                self.tokenizer.encode(
+                    doc['selftext_without_tldr'],
+                    add_space_before_punct_symbol=False
+                ),
                 dtype=torch.long)[:self.hparams.max_tokens]
             for doc in data
         ]
         self.labels = [
             torch.tensor(
-                self.tokenizer.encode(doc['tldr']),
+                self.tokenizer.encode(
+                    doc['tldr'],
+                    add_space_before_punct_symbol=False
+                ),
                 dtype=torch.long)[:self.hparams.max_tokens]
             for doc in data
         ]

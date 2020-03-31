@@ -1,15 +1,12 @@
 
 import json
 import os
-
 import torch
 from torch.nn import functional as F
 
-from transformers.modeling_bart import BartForConditionalGeneration
+from transformers import BartTokenizer, BartForConditionalGeneration
 from transformers import T5Tokenizer, T5ForConditionalGeneration
-from transformers import BartTokenizer
 from trainer.models.base import SummarizationModel
-
 
 class ConditionalGenerationSummarizer(SummarizationModel):
     def __init__(self, *args, **kwargs):
@@ -81,8 +78,18 @@ class ConditionalGenerationSummarizer(SummarizationModel):
             input_ids,
             attention_mask=input_mask,
             num_beams=self.hparams.num_beams,
+            min_length=self.model.config.min_length,
+            #temperature=self.model.config.temperature,
+            #top_k=self.model.config.top_k,
+            #top_p=self.model.config.top_p,
+            bos_token_id=self.encoder_tokenizer.pad_token_id,
+            pad_token_id=self.model.config.pad_token_id,
+            eos_token_id=self.model.config.eos_token_id,
+            #no_repeat_ngram_size=self.model.config.no_repeat_ngram_size,
             max_length=self.hparams.max_length,
+            #length_penalty=self.model.config.length_penalty,
             repetition_penalty=self.hparams.repetition_penalty,
+            decoder_start_token_id=self.model.config.decoder_start_token_id
         )
         loss = self._step(batch)
 
@@ -98,15 +105,11 @@ class ConditionalGenerationSummarizer(SummarizationModel):
         outputs_file = os.path.join(self.hparams.model_dir, self.hparams.name, "outputs.json")
         output = []
         for batch in outputs:
-            output.extend(
-                [{
-                    'prediction': self.decode(batch['preds'][i]),
-                    'target': self.decode(batch['target'][i])
-                }]
-                for i in range(len(batch['preds']))
-            )
+            output.extend(self.decode_batch(batch))
+
         print(json.dumps(output, indent=4))
         with open(outputs_file, 'w') as f:
             json.dump(output, f, indent=4)
 
+        self.calculate_metrics(output)
         return self.test_end(outputs)
