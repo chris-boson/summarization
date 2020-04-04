@@ -52,7 +52,6 @@ def parse_args():
     args = parser.parse_args()
     args.input_dir = os.path.join(args.home_dir, 'datasets')
     args.model_dir = os.path.join(args.home_dir, 'models')
-    if not args.decoder or not ast.literal_eval(args.decoder): args.decoder = args.encoder
     args.max_epochs = int(args.max_epochs)
     args.precision = int(args.precision)
     args.accumulate_grad_batches = int(args.accumulate_grad_batches)

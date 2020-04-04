@@ -4,8 +4,12 @@
 # https://github.com/acarrera94/transformers/tree/bart_summarization_finetuning/examples/summarization/bart
 
 import os
+from tqdm import tqdm
 
 from torch.utils.data import Dataset
+from trainer.logger import get_logger
+
+logger = get_logger()
 
 class CnnDailyMailDataset(Dataset):
     def __init__(self, hparams, tokenizer, type_path="train", block_size=1024):
@@ -17,21 +21,23 @@ class CnnDailyMailDataset(Dataset):
         self.source = []
         self.target = []
 
-        print("loading " + type_path + " source.")
+        logger.info("Loading " + type_path + " source ...")
         if type_path in ['val', 'test'] and self.hparams.max_documents:
             max_documents = self.hparams.max_documents * self.hparams.test_percentage
         elif type_path == 'train' and self.hparams.max_documents:
             max_documents = self.hparams.max_documents * (1 - 2 * self.hparams.test_percentage)
+        else:
+            max_documents = None
 
         with open(os.path.join(data_dir, type_path + ".source"), "r") as f:
             for i, text in enumerate(f.readlines()):  # each text is a line and a full story
-                if i >= max_documents: break
+                if max_documents and i >= max_documents: break
                 tokenized = tokenizer.batch_encode_plus(
                     [text], max_length=block_size, pad_to_max_length=True, return_tensors="pt"
                 )
                 self.source.append(tokenized)
 
-        print("loading " + type_path + " target.")
+        logger.info("Loading " + type_path + " target ...")
 
         with open(os.path.join(data_dir, type_path + ".target"), "r") as f:
             for i, text in enumerate(f.readlines()):  # each text is a line and a summary

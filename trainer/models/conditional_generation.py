@@ -7,7 +7,9 @@ from torch.nn import functional as F
 from transformers import BartTokenizer, BartForConditionalGeneration
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 from trainer.models.base import SummarizationModel
+from trainer.logger import get_logger
 
+logger = get_logger()
 class ConditionalGenerationSummarizer(SummarizationModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -31,31 +33,34 @@ class ConditionalGenerationSummarizer(SummarizationModel):
             raise ValueError("Invalid encoder / decoder params, allowed values %s" %
                              model_dict.keys())
 
-    def forward(self, input_ids, attention_mask, label_ids, label_mask):
+    def forward(
+        self,
+        input_ids,
+        attention_mask=None,
+        decoder_input_ids=None,
+        decoder_attention_mask=None,
+        lm_labels=None):
         return self.model(
-            input_ids=input_ids,
+            input_ids,
             attention_mask=attention_mask,
-            decoder_input_ids=label_ids,
-            decoder_attention_mask=None#label_mask
+            decoder_input_ids=decoder_input_ids,
+            decoder_attention_mask=decoder_attention_mask,
+            lm_labels=lm_labels,
         )
 
     def _step(self, batch):
         input_ids, label_ids, input_mask, label_mask = batch
-        outputs = self.forward(
+        y_ids = label_ids[:, :-1].contiguous()
+        lm_labels = label_ids[:, 1:].clone()
+        lm_labels[label_ids[:, 1:] == self.encoder_tokenizer.pad_token_id] = -100
+
+        outputs = self(
             input_ids=input_ids,
             attention_mask=input_mask,
-            label_ids=label_ids,
-            label_mask=label_mask
+            decoder_input_ids=y_ids,
+            lm_labels=lm_labels
         )
-        out = outputs[0]
-
-        logits = F.log_softmax(out, dim=-1)
-        y = label_ids
-        norm = (y != self.encoder_tokenizer.pad_token_id).data.sum()
-
-        targets = y.clone()
-        targets[y == self.encoder_tokenizer.pad_token_id] = -100
-        loss = self.criterion(logits.contiguous().view(-1, logits.size(-1)), targets.contiguous().view(-1)) / norm
+        loss = outputs[0]
         return loss
 
     def training_step(self, batch, batch_nb):
@@ -79,15 +84,10 @@ class ConditionalGenerationSummarizer(SummarizationModel):
             attention_mask=input_mask,
             num_beams=self.hparams.num_beams,
             min_length=self.model.config.min_length,
-            #temperature=self.model.config.temperature,
-            #top_k=self.model.config.top_k,
-            #top_p=self.model.config.top_p,
             bos_token_id=self.encoder_tokenizer.pad_token_id,
             pad_token_id=self.model.config.pad_token_id,
             eos_token_id=self.model.config.eos_token_id,
-            #no_repeat_ngram_size=self.model.config.no_repeat_ngram_size,
             max_length=self.hparams.max_length,
-            #length_penalty=self.model.config.length_penalty,
             repetition_penalty=self.hparams.repetition_penalty,
             decoder_start_token_id=self.model.config.decoder_start_token_id
         )
@@ -107,7 +107,7 @@ class ConditionalGenerationSummarizer(SummarizationModel):
         for batch in outputs:
             output.extend(self.decode_batch(batch))
 
-        print(json.dumps(output, indent=4))
+        logger.info(json.dumps(output, indent=4))
         with open(outputs_file, 'w') as f:
             json.dump(output, f, indent=4)
 

@@ -2,15 +2,15 @@ import argparse
 import json
 import os
 
-import numpy as np
 import torch
-from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from common.metrics import Metrics
 import pytorch_lightning as pl
 from transformers import get_linear_schedule_with_warmup
-from typing import List
 
+from trainer.logger import get_logger
+
+logger = get_logger()
 
 class SummarizationModel(pl.LightningModule):
     def __init__(self, hparams: argparse.Namespace, dataset_class: torch.utils.data.Dataset):
@@ -54,7 +54,7 @@ class SummarizationModel(pl.LightningModule):
             k: v for k, v in self.hparams.__dict__.items()
             if v is not None and not isinstance(v, list)
         }
-        print(json.dumps(self.hparams.__dict__, indent=4))
+        logger.info(json.dumps(self.hparams.__dict__, indent=4))
 
     def get_datasets(self):
         if self.hparams.dataset == 'tifu':
@@ -68,7 +68,7 @@ class SummarizationModel(pl.LightningModule):
                 self.dataset_class(self.hparams, self.encoder_tokenizer, type_path=i)
                 for i in ['train', 'val', 'test']
             ]
-        print("Documents train: %s, val: %s, test: %s" %
+        logger.info("Documents train: %s, val: %s, test: %s" %
             tuple(len(dataset) for dataset in self.datasets))
 
     def train_dataloader(self):
@@ -150,43 +150,5 @@ class SummarizationModel(pl.LightningModule):
         all_targets = [obj["target"] for obj in output]
 
         metric_scores = self.metrics.score(all_predictions, all_targets)
-        print(json.dumps(metric_scores, indent=4))
+        logger.info(json.dumps(metric_scores, indent=4))
         return metric_scores
-
-    # Work around for ddp distribution strategy: https://github.com/PyTorchLightning/pytorch-lightning/issues/538
-    def configure_ddp(self, model, device_ids):
-        """
-        Configure to use a single GPU set on local rank.
-
-        Must return model.
-        :param model:
-        :param device_ids:
-        :return: DDP wrapped model
-        """
-        device_id = f"cuda:{os.environ['LOCAL_RANK']}"
-
-        model = pl.overrides.data_parallel.LightningDistributedDataParallel(
-            model,
-            device_ids=[device_id],
-            output_device=device_id,
-            find_unused_parameters=True,
-        )
-
-        return model
-
-    def init_ddp_connection(self, proc_rank, world_size):
-        """
-        Connect all procs in the world using the env:// init
-        Use the first node as the root address
-        """
-
-        import torch.distributed as dist
-
-        dist.init_process_group("nccl", init_method="env://")
-        FIXED_SEED = 0
-
-        # Explicitly setting seed to make sure that models created in two processes
-        # start from same random weights and biases.
-        # TODO(jeffling): I'm pretty sure we need to set other seeds as well?
-        print(f"Setting torch manual seed to {FIXED_SEED} for DDP.")
-        torch.manual_seed(FIXED_SEED)

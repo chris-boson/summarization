@@ -8,7 +8,9 @@ from torch.nn import functional as F
 from transformers import PreTrainedEncoderDecoder
 from transformers import GPT2Tokenizer, BertTokenizer, TransfoXLTokenizer
 from trainer.models.base import SummarizationModel
+from trainer.logger import get_logger
 
+logger = get_logger()
 
 class EncoderDecoderSummarizer(SummarizationModel):
     def __init__(self, *args, **kwargs):
@@ -29,10 +31,14 @@ class EncoderDecoderSummarizer(SummarizationModel):
         for k, v in tokenizer_dict.items():
             if k in self.hparams.encoder:
                 self.encoder_tokenizer = v.from_pretrained(self.hparams.encoder)
-                if self.encoder_tokenizer.pad_token is None:
-                    self.encoder_tokenizer.pad_token = self.encoder_tokenizer.eos_token
             if k in self.hparams.decoder:
                 self.decoder_tokenizer = v.from_pretrained(self.hparams.decoder)
+        self.decoder_tokenizer = self.encoder_tokenizer
+
+        if self.encoder_tokenizer.pad_token is None:
+            self.encoder_tokenizer.pad_token = self.encoder_tokenizer.eos_token
+        if self.decoder_tokenizer.pad_token is None:
+            self.decoder_tokenizer.pad_token = self.decoder_tokenizer.eos_token
 
         if self.encoder_tokenizer is None or self.decoder_tokenizer is None:
             raise ValueError("Invalid encoder / decoder params, allowed values %s" %
@@ -68,7 +74,7 @@ class EncoderDecoderSummarizer(SummarizationModel):
         norm = (y != self.encoder_tokenizer.pad_token_id).data.sum()
 
         targets = y.clone()
-        targets[y == self.encoder_tokenizer.pad_token_id] = -100
+        # targets[y == self.decoder_tokenizer.pad_token_id] = -100
         loss = self.criterion(logits.contiguous().view(-1, logits.size(-1)), targets.contiguous().view(-1)) / norm
         return loss
 
@@ -88,17 +94,18 @@ class EncoderDecoderSummarizer(SummarizationModel):
 
     def test_step(self, batch, batch_nb):
         input_ids, label_ids, input_mask, _ = batch
+
         # TODO: num_beams > 1 doesn't work yet
         generated_ids = self.model.decoder.generate(
             input_ids,
             attention_mask=input_mask,
             num_beams=self.hparams.num_beams,
             max_length=self.hparams.max_length,
-            repetition_penalty=self.hparams.repetition_penalty,
-            min_length=self.model.decoder.config.min_length,
-            bos_token_id=self.decoder_tokenizer.pad_token_id,
-            pad_token_id=self.model.decoder.config.pad_token_id,
-            eos_token_id=self.model.decoder.config.eos_token_id,
+            repetition_penalty=self.hparams.repetition_penalty#,
+            # min_length=self.model.decoder.config.min_length,
+            # bos_token_id=self.decoder_tokenizer.pad_token_id,
+            # pad_token_id=self.model.decoder.config.pad_token_id,
+            # eos_token_id=self.model.decoder.config.eos_token_id,
         )
         loss = self._step(batch)
 
@@ -113,7 +120,7 @@ class EncoderDecoderSummarizer(SummarizationModel):
         for batch in outputs:
             output.extend(self.decode_batch(batch))
 
-        print(json.dumps(output, indent=4))
+        logger.info(json.dumps(output, indent=4))
         with open(outputs_file, 'w') as f:
             json.dump(output, f, indent=4)
 
