@@ -8,9 +8,8 @@ from common.metrics import Metrics
 import pytorch_lightning as pl
 from transformers import get_linear_schedule_with_warmup
 
-from common.logger import get_logger
+from common.logger import logger
 
-logger = get_logger()
 
 class SummarizationModel(pl.LightningModule):
     def __init__(self, hparams: argparse.Namespace, dataset_class: torch.utils.data.Dataset):
@@ -76,7 +75,7 @@ class SummarizationModel(pl.LightningModule):
             self.datasets[0],
             shuffle=True,
             batch_size=self.hparams.train_batch_size,
-            num_workers=1,
+            num_workers=4,
             collate_fn=self.collate
         )
 
@@ -85,7 +84,7 @@ class SummarizationModel(pl.LightningModule):
             self.datasets[1],
             shuffle=False,
             batch_size=self.hparams.eval_batch_size,
-            num_workers=1,
+            num_workers=4,
             collate_fn=self.collate
         )
 
@@ -94,7 +93,7 @@ class SummarizationModel(pl.LightningModule):
             self.datasets[2],
             shuffle=False,
             batch_size=self.hparams.eval_batch_size,
-            num_workers=1,
+            num_workers=4,
             collate_fn=self.collate
         )
 

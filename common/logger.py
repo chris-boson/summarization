@@ -13,5 +13,4 @@ def get_std_out_logger(logging_level=logging.INFO):
     logger.addHandler(handler)
     return logger
 
-def get_logger():
-    return get_std_out_logger(logging_level=logging.INFO)
+logger = get_std_out_logger(logging_level=logging.INFO)

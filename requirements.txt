@@ -1,4 +1,4 @@
 pytorch-lightning
 # transformers
--e git+https://github.com/greenkeytech/transformers.git@mgoldey/seq2seq#egg=transformers
+-e git+https://github.com/patrickvonplaten/transformers/tree/clean_encoder_decocer_modeling#egg=transformers
 rouge-score

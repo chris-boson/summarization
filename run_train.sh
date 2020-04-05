@@ -3,9 +3,9 @@ export CUDA_VISIBLE_DEVICES=0,1,2,3
 HOME_DIR=/home/lambda/projects/summarization
 NOW=$(date +'%Y_%m_%d__%H_%M_%Z')
 
-MODEL_TYPE=conditional_generation # language_model, encoder_decoder, conditional_generation
-ENCODER=t5-small # transfo-xl-wt103, t5-small, gpt2, bert-base-uncased
-DECODER=t5-small # If None use same as encoder
+MODEL_TYPE=encoder_decoder # language_model, encoder_decoder, conditional_generation
+ENCODER=bert-base-uncased # transfo-xl-wt103, t5-small, gpt2, bert-base-uncased
+DECODER=bert-base-uncased # If None use same as encoder
 
 DATASET=tifu # tifu, cnn_dm
 
@@ -22,10 +22,10 @@ python -m trainer.main \
     --name $DATASET/$MODEL_TYPE/${ENCODER}_${DECODER}/$NOW \
     --accumulate_grad_batches 1 \
     --max_epochs 2 \
-    --train_batch_size 32 \
-    --eval_batch_size 32 \
+    --train_batch_size 16 \
+    --eval_batch_size 8 \
     --test_percentage 0.05 \
-    --max_documents 10000 \
+    --max_documents 100 \
     --max_tokens 512 \
     --num_beams 1 \
     --max_length 40 \

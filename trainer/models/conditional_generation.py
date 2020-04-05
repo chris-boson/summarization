@@ -7,9 +7,9 @@ from torch.nn import functional as F
 from transformers import BartTokenizer, BartForConditionalGeneration
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 from trainer.models.base import SummarizationModel
-from common.logger import get_logger
+from common.logger import logger
 
-logger = get_logger()
+
 class ConditionalGenerationSummarizer(SummarizationModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

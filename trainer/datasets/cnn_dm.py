@@ -7,9 +7,8 @@ import os
 from tqdm import tqdm
 
 from torch.utils.data import Dataset
-from common.logger import get_logger
+from common.logger import logger
 
-logger = get_logger()
 
 class CnnDailyMailDataset(Dataset):
     def __init__(self, hparams, tokenizer, type_path="train", block_size=1024):

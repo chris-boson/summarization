@@ -9,9 +9,8 @@ from torch.nn import functional as F
 from transformers import EncoderDecoderModel
 from transformers import GPT2Tokenizer, BertTokenizer, TransfoXLTokenizer
 from trainer.models.base import SummarizationModel
-from common.logger import get_logger
+from common.logger import logger
 
-logger = get_logger()
 
 class EncoderDecoderSummarizer(SummarizationModel):
     def __init__(self, *args, **kwargs):
@@ -29,6 +28,7 @@ class EncoderDecoderSummarizer(SummarizationModel):
         self.model = EncoderDecoderModel.from_pretrained(
             self.hparams.encoder, self.hparams.decoder
         )
+        self.model.encoder_outputs_batch_dim_idx = 0
         for k, v in tokenizer_dict.items():
             if k in self.hparams.encoder:
                 self.encoder_tokenizer = v.from_pretrained(self.hparams.encoder)
