@@ -7,7 +7,7 @@ from torch.nn import functional as F
 from transformers import BartTokenizer, BartForConditionalGeneration
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 from trainer.models.base import SummarizationModel
-from trainer.logger import get_logger
+from common.logger import get_logger
 
 logger = get_logger()
 class ConditionalGenerationSummarizer(SummarizationModel):
@@ -94,9 +94,6 @@ class ConditionalGenerationSummarizer(SummarizationModel):
         loss = self._step(batch)
 
         return {"val_loss": loss, "preds": generated_ids, "target": label_ids}
-
-    def decode(self, ids):
-        return self.decoder_tokenizer.decode(ids, skip_special_tokens=True, clean_up_tokenization_spaces=True)
 
     def test_end(self, outputs):
         return self.validation_end(outputs)

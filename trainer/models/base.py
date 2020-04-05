@@ -8,7 +8,7 @@ from common.metrics import Metrics
 import pytorch_lightning as pl
 from transformers import get_linear_schedule_with_warmup
 
-from trainer.logger import get_logger
+from common.logger import get_logger
 
 logger = get_logger()
 

@@ -5,10 +5,11 @@ import json
 import torch
 from torch.nn import functional as F
 
-from transformers import PreTrainedEncoderDecoder
+# from transformers import PreTrainedEncoderDecoder as EncoderDecoderModel
+from transformers import EncoderDecoderModel
 from transformers import GPT2Tokenizer, BertTokenizer, TransfoXLTokenizer
 from trainer.models.base import SummarizationModel
-from trainer.logger import get_logger
+from common.logger import get_logger
 
 logger = get_logger()
 
@@ -25,7 +26,7 @@ class EncoderDecoderSummarizer(SummarizationModel):
             'bert': BertTokenizer,
             'transfo-xl': TransfoXLTokenizer
         }
-        self.model = PreTrainedEncoderDecoder.from_pretrained(
+        self.model = EncoderDecoderModel.from_pretrained(
             self.hparams.encoder, self.hparams.decoder
         )
         for k, v in tokenizer_dict.items():
@@ -44,29 +45,60 @@ class EncoderDecoderSummarizer(SummarizationModel):
             raise ValueError("Invalid encoder / decoder params, allowed values %s" %
                              tokenizer_dict.keys())
 
-    def forward(self, input_ids, attention_mask, label_ids, label_mask):
+    # def forward(self, input_ids, attention_mask, label_ids, label_mask):
+    #     return self.model(
+    #         encoder_input_ids=input_ids,
+    #         encoder_attention_mask=attention_mask,
+    #         decoder_input_ids=label_ids,
+    #         decoder_attention_mask=None#label_mask
+    #     )
+
+    # def _step(self, batch):
+    #     input_ids, label_ids, input_mask, label_mask = batch
+
+    #     #TODO: Check if this is the right thing to do
+    #     #Pad label_ids to same length as input_ids
+    #     padding = (torch.zeros(
+    #         (input_ids.shape[0], input_ids.shape[1] - label_ids.shape[1]), dtype=torch.int
+    #     ) + self.encoder_tokenizer.pad_token_id).type_as(label_ids)
+    #     label_ids = torch.cat([label_ids, padding], dim=-1)
+
+    #     outputs = self.forward(
+    #         input_ids=input_ids,
+    #         attention_mask=input_mask,
+    #         label_ids=label_ids,
+    #         label_mask=label_mask
+    #     )
+    #     out = outputs[0]
+    #     logits = F.log_softmax(out, dim=-1)
+    #     y = label_ids
+    #     norm = (y != self.encoder_tokenizer.pad_token_id).data.sum()
+
+    #     targets = y.clone()
+    #     # targets[y == self.decoder_tokenizer.pad_token_id] = -100
+    #     loss = self.criterion(logits.contiguous().view(-1, logits.size(-1)), targets.contiguous().view(-1)) / norm
+    #     return loss
+
+    def forward(
+        self,
+        input_ids,
+        attention_mask=None,
+        decoder_input_ids=None,
+        decoder_attention_mask=None,
+        lm_labels=None):
         return self.model(
-            encoder_input_ids=input_ids,
-            encoder_attention_mask=attention_mask,
-            decoder_input_ids=label_ids,
-            decoder_attention_mask=None#label_mask
+            input_ids,
+            attention_mask=attention_mask,
+            decoder_input_ids=decoder_input_ids,
+            decoder_attention_mask=decoder_attention_mask
         )
 
     def _step(self, batch):
         input_ids, label_ids, input_mask, label_mask = batch
-
-        #TODO: Check if this is the right thing to do
-        #Pad label_ids to same length as input_ids
-        padding = (torch.zeros(
-            (input_ids.shape[0], input_ids.shape[1] - label_ids.shape[1]), dtype=torch.int
-        ) + self.encoder_tokenizer.pad_token_id).type_as(label_ids)
-        label_ids = torch.cat([label_ids, padding], dim=-1)
-
-        outputs = self.forward(
+        outputs = self(
             input_ids=input_ids,
             attention_mask=input_mask,
-            label_ids=label_ids,
-            label_mask=label_mask
+            decoder_input_ids=label_ids
         )
         out = outputs[0]
         logits = F.log_softmax(out, dim=-1)
@@ -96,16 +128,14 @@ class EncoderDecoderSummarizer(SummarizationModel):
         input_ids, label_ids, input_mask, _ = batch
 
         # TODO: num_beams > 1 doesn't work yet
-        generated_ids = self.model.decoder.generate(
+        generated_ids = self.model.generate(
             input_ids,
             attention_mask=input_mask,
             num_beams=self.hparams.num_beams,
             max_length=self.hparams.max_length,
-            repetition_penalty=self.hparams.repetition_penalty#,
-            # min_length=self.model.decoder.config.min_length,
-            # bos_token_id=self.decoder_tokenizer.pad_token_id,
-            # pad_token_id=self.model.decoder.config.pad_token_id,
-            # eos_token_id=self.model.decoder.config.eos_token_id,
+            repetition_penalty=self.hparams.repetition_penalty,
+            bos_token_id=self.encoder_tokenizer.pad_token_id,
+            decoder_start_token_id=self.model.config.decoder_start_token_id
         )
         loss = self._step(batch)
 

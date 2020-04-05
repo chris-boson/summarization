@@ -7,7 +7,7 @@ import os
 from tqdm import tqdm
 
 from torch.utils.data import Dataset
-from trainer.logger import get_logger
+from common.logger import get_logger
 
 logger = get_logger()
 
