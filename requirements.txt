@@ -1,4 +1,5 @@
-pytorch-lightning
+pytorch-lightning==1.0.3
 # transformers
 -e git+https://github.com/greenkeytech/transformers.git@mgoldey/seq2seq#egg=transformers
 rouge-score
+pandas==1.1.3

@@ -57,7 +57,7 @@ class SummarizationModel(pl.LightningModule):
         print(json.dumps(self.hparams.__dict__, indent=4))
 
     def get_datasets(self):
-        if self.hparams.dataset == 'tifu':
+        if self.hparams.dataset in ['tifu', 'ackchyually']:
             assert self.hparams.test_percentage < 0.33
             self.dataset = self.dataset_class(self.hparams, self.encoder_tokenizer)
             test_len = int(self.hparams.test_percentage*len(self.dataset))
@@ -68,6 +68,9 @@ class SummarizationModel(pl.LightningModule):
                 self.dataset_class(self.hparams, self.encoder_tokenizer, type_path=i)
                 for i in ['train', 'val', 'test']
             ]
+        else:
+            raise ValueError(f"Unknown dataset: {self.hparams.dataset}")
+
         print("Documents train: %s, val: %s, test: %s" %
             tuple(len(dataset) for dataset in self.datasets))
 

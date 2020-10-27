@@ -1,17 +1,17 @@
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 
-HOME_DIR=/home/lambda/projects/summarization
+HOME_DIR=~/projects/summarization
 NOW=$(date +'%Y_%m_%d__%H_%M_%Z')
 
-MODEL_TYPE=encoder_decoder # language_model, encoder_decoder, conditional_generation
-ENCODER=gpt2 # transfo-xl-wt103, t5-small, gpt2, bert-base-uncased
+MODEL_TYPE=conditional_generation # language_model, encoder_decoder, conditional_generation
+ENCODER=t5-small # transfo-xl-wt103, t5-small, gpt2, bert-base-uncased
 DECODER=None # If None use same as encoder
 
-DATASET=tifu # tifu, cnn_dm
+DATASET=ackchyually # tifu, cnn_dm
 
 
 python -m trainer.main \
-    --gpus 0,1,2,3 \
+    --gpus 0 \
     --distributed_backend dp \
     --precision 32 \
     --home_dir $HOME_DIR \
@@ -30,19 +30,3 @@ python -m trainer.main \
     --num_beams 1 \
     --max_length 40 \
     --repetition_penalty 3.0 \
-
-# python -m torch.distributed.launch \
-#     --nproc_per_node 4 \
-#     trainer/main.py \
-#         --home_dir $HOME_DIR \
-#         --name $DATASET/$MODEL_TYPE/$NOW \
-#         --gpus 0,1,2,3 \
-#         --distributed_backend ddp \
-#         --precision 32 \
-#         --max_epochs 10 \
-#         --train_batch_size 1 \
-#         --eval_batch_size 1 \
-#         --test_percentage 0.1 \
-#         --max_documents 100 \
-#         --model_type $MODEL_TYPE \
-#         --max_tokens 1024 \
